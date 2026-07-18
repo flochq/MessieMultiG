@@ -21,21 +21,23 @@
         #ui {
             text-align: center;
             position: absolute;
-            top: 20px;
+            top: 40px;
             pointer-events: none;
         }
-        h1 { margin: 0; font-size: 24px; color: #4af; }
-        #score { font-size: 48px; font-weight: bold; margin-top: 10px; }
+        h1 { margin: 0; font-size: 24px; color: #ff7675; letter-spacing: 2px; }
+        #score { font-size: 64px; font-weight: bold; margin-top: 10px; color: #fff; }
         #canvas {
-            background-color: #1e1e1e;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background-color: #1a1a1a;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
         #instructions {
             position: absolute;
             bottom: 40px;
-            color: #888;
+            color: #666;
             font-size: 14px;
+            text-align: center;
+            padding: 0 20px;
         }
     </style>
 </head>
@@ -43,12 +45,12 @@
 
     <div id="ui">
         <h1>CERCLE PARFAIT</h1>
-        <div id="score">Dessine !</div>
+        <div id="score">-</div>
     </div>
 
     <canvas id="canvas"></canvas>
 
-    <div id="instructions">Dessine un cercle d'un seul trait autour du point central.</div>
+    <div id="instructions">Dessine un cercle n'importe où sur l'écran, d'un seul trait.</div>
 
     <script>
         const canvas = document.getElementById('canvas');
@@ -56,27 +58,12 @@
         const scoreDisplay = document.getElementById('score');
 
         // Adapter la taille du canvas à l'écran du téléphone ou PC
-        const size = Math.min(window.innerWidth - 40, 400);
+        const size = Math.min(window.innerWidth - 30, 450);
         canvas.width = size;
         canvas.height = size;
 
-        const centerX = size / 2;
-        const centerY = size / 2;
         let points = [];
         let isDrawing = false;
-
-        // Dessiner le point central au démarrage
-        resetCanvas();
-
-        function resetCanvas() {
-            ctx.clearRect(0, 0, size, size);
-            // Point central
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
-            ctx.fillStyle = '#4af';
-            ctx.fill();
-            points = [];
-        }
 
         // Événements tactiles et souris
         canvas.addEventListener('mousedown', startDrawing);
@@ -89,7 +76,8 @@
 
         function startDrawing(e) {
             isDrawing = true;
-            resetCanvas();
+            ctx.clearRect(0, 0, size, size); // Efface le cercle précédent dès qu'on recommence
+            points = [];
             addPoint(e);
         }
 
@@ -97,9 +85,9 @@
             if (!isDrawing) return;
             addPoint(e);
 
-            // Dessiner la ligne du joueur
+            // Dessiner la ligne blanche du joueur
             ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 5;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.beginPath();
@@ -121,45 +109,54 @@
             if (!isDrawing) return;
             isDrawing = false;
 
-            if (points.length < 10) {
+            if (points.length < 15) {
                 scoreDisplay.innerText = "Trop court !";
+                scoreDisplay.style.color = "#666";
                 return;
             }
 
-            // CALCUL DU SCORE
-            // 1. Calculer la distance de chaque point par rapport au centre
+            // 1. TROUVER LE CENTRE DU CERCLE DU JOUEUR (Moyenne géométrique)
+            let totalX = 0, totalY = 0;
+            points.forEach(p => { totalX += p.x; totalY += p.y; });
+            const centerX = totalX / points.length;
+            const centerY = totalY / points.length;
+
+            // 2. Calculer la distance de chaque point par rapport à ce centre calculé
             let distances = points.map(p => {
                 const dx = p.x - centerX;
                 const dy = p.y - centerY;
                 return Math.sqrt(dx * dx + dy * dy);
             });
 
-            // 2. Calculer le rayon moyen du joueur
-            const sum = distances.reduce((a, b) => a + b, 0);
-            const rMoyen = sum / distances.length;
+            // 3. Calculer le rayon moyen du tracé
+            const sumDistances = distances.reduce((a, b) => a + b, 0);
+            const rMoyen = sumDistances / distances.length;
 
-            // 3. Calculer l'écart moyen (la régularité)
+            // 4. Calculer la régularité (écart par rapport au rayon moyen)
             let ecartSomme = distances.reduce((a, d) => a + Math.abs(d - rMoyen), 0);
             let ecartMoyen = ecartSomme / distances.length;
 
-            // 4. Convertir en pourcentage de réussite
-            // Si l'écart moyen est de 0, c'est 100%. Plus l'écart grandit, plus le score baisse.
-            let scorePourcent = Math.max(0, 100 - (ecartMoyen * 2.5));
+            // 5. Convertir en score (0 à 100%)
+            let scorePourcent = Math.max(0, 100 - (ecartMoyen * 2.8));
             
-            // Si le cercle n'est pas refermé, on applique une pénalité
+            // 6. Vérifier si le cercle est bien fermé (pénalité si trop ouvert)
             const premierPoint = points[0];
             const dernierPoint = points[points.length - 1];
             const distanceFermeture = Math.sqrt(Math.pow(premierPoint.x - dernierPoint.x, 2) + Math.pow(premierPoint.y - dernierPoint.y, 2));
-            if (distanceFermeture > 50) {
-                scorePourcent *= 0.7; // -30% si le cercle est grand ouvert
+            
+            // Si la distance de fermeture est plus grande que 20% du rayon moyen, on pénalise
+            if (distanceFermeture > rMoyen * 0.4) {
+                scorePourcent *= 0.6; // Grosse pénalité si ce n'est pas une boucle fermée
             }
 
-            scoreDisplay.innerText = Math.round(scorePourcent) + "%";
+            // Affichage du score final
+            const scoreFinal = Math.round(scorePourcent);
+            scoreDisplay.innerText = scoreFinal + "%";
 
-            // Colorer le texte selon le succès
-            if (scorePourcent > 90) scoreDisplay.style.color = '#2ecc71'; // Vert
-            else if (scorePourcent > 70) scoreDisplay.style.color = '#f1c40f'; // Jaune
-            else scoreDisplay.style.color = '#e74c3c'; // Rouge
+            // Changement de couleur du score selon la performance
+            if (scoreFinal > 90) scoreDisplay.style.color = '#2ecc71'; // Vert (Excellent)
+            else if (scoreFinal > 75) scoreDisplay.style.color = '#f1c40f'; // Jaune (Pas mal)
+            else scoreDisplay.style.color = '#e74c3c'; // Rouge (À retravailler)
         }
     </script>
 </body>
