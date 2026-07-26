@@ -1,163 +1,204 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Le Cercle Parfait</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #121212;
-            color: white;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
+<!-- Paramètres spécifiques iOS (Web App / Écran d'accueil) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cercle Parfait">
+<meta name="theme-color" content="#121212">
+
+<!-- Icône de l'application sur l'écran d'accueil (SVG Data-URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><rect width='180' height='180' fill='%23121212'/><circle cx='90' cy='90' r='50' fill='none' stroke='%23ff7675' stroke-width='12'/></svg>">
+
+<title>Le Cercle Parfait</title>
+<style>
+    * {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        box-sizing: border-box;
+    }
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #121212;
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+    }
+
+    #ui {
+        text-align: center;
+        position: absolute;
+        top: calc(40px + env(safe-area-inset-top));
+        pointer-events: none;
+        z-index: 10;
+    }
+
+    h1 { 
+        margin: 0; 
+        font-size: 22px; 
+        color: #ff7675; 
+        letter-spacing: 2px; 
+        text-transform: uppercase;
+    }
+
+    #score { 
+        font-size: 64px; 
+        font-weight: 800; 
+        margin-top: 5px; 
+        color: #fff; 
+        text-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    #canvas {
+        background-color: #1a1a1a;
+        border-radius: 28px;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+        touch-action: none;
+    }
+
+    #instructions {
+        position: absolute;
+        bottom: calc(30px + env(safe-area-inset-bottom));
+        color: #777;
+        font-size: 14px;
+        text-align: center;
+        padding: 0 20px;
+        pointer-events: none;
+    }
+</style>
+
+
+<div id="ui">
+    <h1>Cercle Parfait</h1>
+    <div id="score">-</div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div id="instructions">Dessine un cercle n'importe où sur l'écran, d'un seul trait.</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score');
+
+    // Adapter la taille du canvas à la taille disponible
+    const availableWidth = window.innerWidth - 32;
+    const availableHeight = window.innerHeight - 180;
+    const size = Math.min(availableWidth, availableHeight, 450);
+
+    canvas.width = size;
+    canvas.height = size;
+
+    let points = [];
+    let isDrawing = false;
+
+    // Événements tactiles et souris
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+
+    canvas.addEventListener('touchstart', (e) => { 
+        e.preventDefault(); 
+        startDrawing(e.touches[0]); 
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => { 
+        e.preventDefault(); 
+        draw(e.touches[0]); 
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        stopDrawing();
+    }, { passive: false });
+
+    function startDrawing(e) {
+        isDrawing = true;
+        ctx.clearRect(0, 0, size, size);
+        points = [];
+        addPoint(e);
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        addPoint(e);
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
         }
-        #ui {
-            text-align: center;
-            position: absolute;
-            top: 40px;
-            pointer-events: none;
-        }
-        h1 { margin: 0; font-size: 24px; color: #ff7675; letter-spacing: 2px; }
-        #score { font-size: 64px; font-weight: bold; margin-top: 10px; color: #fff; }
-        #canvas {
-            background-color: #1a1a1a;
-            border-radius: 24px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-        }
-        #instructions {
-            position: absolute;
-            bottom: 40px;
-            color: #666;
-            font-size: 14px;
-            text-align: center;
-            padding: 0 20px;
-        }
-    </style>
-</head>
-<body>
+        ctx.stroke();
+    }
 
-    <div id="ui">
-        <h1>CERCLE PARFAIT</h1>
-        <div id="score">-</div>
-    </div>
+    function addPoint(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        points.push({ x, y });
+    }
 
-    <canvas id="canvas"></canvas>
+    function stopDrawing() {
+        if (!isDrawing) return;
+        isDrawing = false;
 
-    <div id="instructions">Dessine un cercle n'importe où sur l'écran, d'un seul trait.</div>
-
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const scoreDisplay = document.getElementById('score');
-
-        // Adapter la taille du canvas à l'écran du téléphone ou PC
-        const size = Math.min(window.innerWidth - 30, 450);
-        canvas.width = size;
-        canvas.height = size;
-
-        let points = [];
-        let isDrawing = false;
-
-        // Événements tactiles et souris
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); });
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
-        canvas.addEventListener('touchend', stopDrawing);
-
-        function startDrawing(e) {
-            isDrawing = true;
-            ctx.clearRect(0, 0, size, size); // Efface le cercle précédent dès qu'on recommence
-            points = [];
-            addPoint(e);
+        if (points.length < 15) {
+            scoreDisplay.innerText = "Trop court !";
+            scoreDisplay.style.color = "#666";
+            return;
         }
 
-        function draw(e) {
-            if (!isDrawing) return;
-            addPoint(e);
+        // 1. Calcul du centre de la forme dessinée
+        let totalX = 0, totalY = 0;
+        points.forEach(p => { totalX += p.x; totalY += p.y; });
+        const centerX = totalX / points.length;
+        const centerY = totalY / points.length;
 
-            // Dessiner la ligne blanche du joueur
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 5;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.beginPath();
-            ctx.moveTo(points[0].x, points[0].y);
-            for (let i = 1; i < points.length; i++) {
-                ctx.lineTo(points[i].x, points[i].y);
-            }
-            ctx.stroke();
+        // 2. Calcul des distances de chaque point par rapport au centre
+        let distances = points.map(p => {
+            const dx = p.x - centerX;
+            const dy = p.y - centerY;
+            return Math.sqrt(dx * dx + dy * dy);
+        });
+
+        // 3. Calcul du rayon moyen
+        const sumDistances = distances.reduce((a, b) => a + b, 0);
+        const rMoyen = sumDistances / distances.length;
+
+        // 4. Calcul de la régularité (écart type)
+        let ecartSomme = distances.reduce((a, d) => a + Math.abs(d - rMoyen), 0);
+        let ecartMoyen = ecartSomme / distances.length;
+
+        // 5. Calcul du pourcentage
+        let scorePourcent = Math.max(0, 100 - (ecartMoyen * 2.8));
+        
+        // 6. Test de fermeture du cercle
+        const premierPoint = points[0];
+        const dernierPoint = points[points.length - 1];
+        const distanceFermeture = Math.sqrt(Math.pow(premierPoint.x - dernierPoint.x, 2) + Math.pow(premierPoint.y - dernierPoint.y, 2));
+        
+        if (distanceFermeture > rMoyen * 0.4) {
+            scorePourcent *= 0.6;
         }
 
-        function addPoint(e) {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            points.push({ x, y });
-        }
+        const scoreFinal = Math.round(scorePourcent);
+        scoreDisplay.innerText = scoreFinal + "%";
 
-        function stopDrawing() {
-            if (!isDrawing) return;
-            isDrawing = false;
-
-            if (points.length < 15) {
-                scoreDisplay.innerText = "Trop court !";
-                scoreDisplay.style.color = "#666";
-                return;
-            }
-
-            // 1. TROUVER LE CENTRE DU CERCLE DU JOUEUR (Moyenne géométrique)
-            let totalX = 0, totalY = 0;
-            points.forEach(p => { totalX += p.x; totalY += p.y; });
-            const centerX = totalX / points.length;
-            const centerY = totalY / points.length;
-
-            // 2. Calculer la distance de chaque point par rapport à ce centre calculé
-            let distances = points.map(p => {
-                const dx = p.x - centerX;
-                const dy = p.y - centerY;
-                return Math.sqrt(dx * dx + dy * dy);
-            });
-
-            // 3. Calculer le rayon moyen du tracé
-            const sumDistances = distances.reduce((a, b) => a + b, 0);
-            const rMoyen = sumDistances / distances.length;
-
-            // 4. Calculer la régularité (écart par rapport au rayon moyen)
-            let ecartSomme = distances.reduce((a, d) => a + Math.abs(d - rMoyen), 0);
-            let ecartMoyen = ecartSomme / distances.length;
-
-            // 5. Convertir en score (0 à 100%)
-            let scorePourcent = Math.max(0, 100 - (ecartMoyen * 2.8));
-            
-            // 6. Vérifier si le cercle est bien fermé (pénalité si trop ouvert)
-            const premierPoint = points[0];
-            const dernierPoint = points[points.length - 1];
-            const distanceFermeture = Math.sqrt(Math.pow(premierPoint.x - dernierPoint.x, 2) + Math.pow(premierPoint.y - dernierPoint.y, 2));
-            
-            // Si la distance de fermeture est plus grande que 20% du rayon moyen, on pénalise
-            if (distanceFermeture > rMoyen * 0.4) {
-                scorePourcent *= 0.6; // Grosse pénalité si ce n'est pas une boucle fermée
-            }
-
-            // Affichage du score final
-            const scoreFinal = Math.round(scorePourcent);
-            scoreDisplay.innerText = scoreFinal + "%";
-
-            // Changement de couleur du score selon la performance
-            if (scoreFinal > 90) scoreDisplay.style.color = '#2ecc71'; // Vert (Excellent)
-            else if (scoreFinal > 75) scoreDisplay.style.color = '#f1c40f'; // Jaune (Pas mal)
-            else scoreDisplay.style.color = '#e74c3c'; // Rouge (À retravailler)
-        }
-    </script>
-</body>
-</html>
+        if (scoreFinal > 90) scoreDisplay.style.color = '#2ecc71';
+        else if (scoreFinal > 75) scoreDisplay.style.color = '#f1c40f';
+        else scoreDisplay.style.color = '#e74c3c';
+    }
+</script>
